@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SCD - Gestão de Metas</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --primary: #2c6e49;
+            --secondary: #4a8c6d;
+            --accent: #ffd700;
+            --danger: #dc3545;
+            --bg: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: var(--bg);
+        }
+
+        .header {
+            text-align: center;
+            padding: 2rem;
+            margin: 2rem 0;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            border-radius: 1rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-container {
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.8rem;
+            border: 2px solid #e9ecef;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(44, 110, 73, 0.1);
+            outline: none;
+        }
+
+        .btn {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn:hover {
+            filter: brightness(1.1);
+            transform: translateY(-1px);
+        }
+
+        #charts-container {
+            margin: 2rem 0;
+        }
+
+        .chart-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: #6c757d;
+            border-top: 1px solid #e9ecef;
+            margin-top: 2rem;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid var(--primary);
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Santa Casa de Descalvado</h1>
+        <h2>Dasboard Metas Gestão Hospitalares</h2>
+    </div>
+
+    <div class="form-container">
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Departamento</label>
+                <select id="departamento" class="form-control" required>
+                    <option value="">Selecione...</option>
+                    <option>Tecnologia da Informação</option>
+                    <option>Suprimentos</option>
+                    <option>Manutenção</option>
+                    <option>Almoxarifado</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Objetivo</label>
+                <input type="text" id="objetivo" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <label>Mês</label>
+                <select id="mes" class="form-control" required>
+                    <option value="Jan">Janeiro</option>
+                    <option value="Fev">Fevereiro</option>
+                    <option value="Mar">Março</option>
+                    <option value="Abr">Abril</option>
+                    <option value="Mai">Maio</option>
+                    <option value="Jun">Junho</option>
+                    <option value="Jul">Julho</option>
+                    <option value="Ago">Agosto</option>
+                    <option value="Set">Setembro</option>
+                    <option value="Out">Outubro</option>
+                    <option value="Nov">Novembro</option>
+                    <option value="Dez">Dezembro</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Meta (%)</label>
+                <input type="number" id="meta" class="form-control" min="0" max="100" required>
+            </div>
+
+            <div class="form-group">
+                <label>Desempenho (%)</label>
+                <input type="number" id="desempenho" class="form-control" min="0" max="100" required>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+            <button class="btn btn-primary" onclick="salvarRegistro()">Salvar Registro</button>
+            <button class="btn btn-danger" onclick="limparTudo()">Limpar Tudo</button>
+        </div>
+    </div>
+
+    <div id="charts-container"></div>
+
+    <div class="toast" id="toast"></div>
+
+    <footer>
+        Sistema desenvolvido por Mauricio Mazola - 2024
+    </footer>
+
+    <script>
+        const SUPABASE_URL = 'https://tywouwrbfxaqtnufxxif.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR5d291d3JiZnhhcXRudWZ4eGlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDAwODIwMTAsImV4cCI6MjA1NTY1ODAxMH0.dNFH2N_7F6UysgcH_4fsMhwHZLFxpbb-8FhYZ5MWmnc';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const charts = new Map();
+        const monthOrder = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.style.borderColor = type === 'error' ? '#dc3545' : '#2c6e49';
+            toast.textContent = message;
+            toast.style.display = 'block';
+            setTimeout(() => toast.style.display = 'none', 3000);
+        }
+
+        async function salvarRegistro() {
+            const btn = document.querySelector('.btn-primary');
+            btn.disabled = true;
+            
+            try {
+                const departamento = document.getElementById('departamento').value;
+                const objetivo = document.getElementById('objetivo').value.trim();
+                const mes = document.getElementById('mes').value;
+                const meta = parseInt(document.getElementById('meta').value);
+                const desempenho = parseInt(document.getElementById('desempenho').value);
+
+                if(!departamento || !objetivo || !mes) {
+                    throw new Error('Preencha todos os campos obrigatórios');
+                }
+                if(isNaN(meta) || meta < 0 || meta > 100) {
+                    throw new Error('Meta inválida (0-100%)');
+                }
+                if(isNaN(desempenho) || desempenho < 0 || desempenho > 100) {
+                    throw new Error('Desempenho inválido (0-100%)');
+                }
+
+                const { error } = await supabase
+                    .from('metricas')
+                    .insert([{ departamento, objetivo, mes, meta, desempenho }]);
+
+                if(error) throw error;
+                
+                // Resetar campos
+                document.getElementById('objetivo').value = '';
+                document.getElementById('meta').value = '';
+                document.getElementById('desempenho').value = '';
+                
+                await carregarDados();
+                showToast('Registro salvo com sucesso!');
+            } catch (error) {
+                showToast(error.message, 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function carregarDados() {
+            try {
+                const { data, error } = await supabase
+                    .from('metricas')
+                    .select('*')
+                    .order('mes', { ascending: true });
+
+                if(error) throw error;
+                
+                processarEExibirGraficos(data);
+            } catch (error) {
+                showToast('Erro ao carregar dados: ' + error.message, 'error');
+            }
+        }
+
+        function processarEExibirGraficos(dados) {
+            // Limpar gráficos existentes
+            charts.forEach(chart => chart.destroy());
+            charts.clear();
+            document.getElementById('charts-container').innerHTML = '';
+
+            // Agrupar dados corretamente
+            const grupos = dados.reduce((acc, item) => {
+                const key = `${item.departamento}|${item.objetivo}`;
+                if(!acc[key]) {
+                    acc[key] = {
+                        departamento: item.departamento,
+                        objetivo: item.objetivo,
+                        meses: [],
+                        metas: [],
+                        desempenhos: []
+                    };
+                }
+                
+                // Evitar duplicatas por mês
+                if(!acc[key].meses.includes(item.mes)) {
+                    acc[key].meses.push(item.mes);
+                    acc[key].metas.push(item.meta);
+                    acc[key].desempenhos.push(item.desempenho);
+                }
+                return acc;
+            }, {});
+
+            // Criar gráficos
+            Object.entries(grupos).forEach(([key, grupo]) => {
+                // Ordenar meses
+                const indicesOrdenados = grupo.meses
+                    .map((mes, index) => ({ index, order: monthOrder.indexOf(mes) }))
+                    .sort((a, b) => a.order - b.order)
+                    .map(item => item.index);
+
+                const mesesOrdenados = indicesOrdenados.map(i => grupo.meses[i]);
+                const metasOrdenadas = indicesOrdenados.map(i => grupo.metas[i]);
+                const desempenhosOrdenados = indicesOrdenados.map(i => grupo.desempenhos[i]);
+
+                criarChart(grupo.departamento, grupo.objetivo, mesesOrdenados, metasOrdenadas, desempenhosOrdenados);
+            });
+        }
+
+        function criarChart(departamento, objetivo, meses, metas, desempenhos) {
+            const container = document.createElement('div');
+            container.className = 'chart-card';
+            container.innerHTML = `
+                <div class="chart-header">
+                    <h3>${departamento} - ${objetivo}</h3>
+                    <button class="btn btn-danger" 
+                        onclick="excluirGrupo('${departamento.replace(/'/g, "\\'")}', '${objetivo.replace(/'/g, "\\'")}')">
+                        Excluir
+                    </button>
+                </div>
+                <canvas></canvas>
+            `;
+
+            document.getElementById('charts-container').appendChild(container);
+            
+            const ctx = container.querySelector('canvas').getContext('2d');
+            const chartKey = `${departamento}|${objetivo}`;
+            
+            charts.set(chartKey, new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: meses,
+                    datasets: [{
+                        label: 'Meta',
+                        data: metas,
+                        borderColor: '#ffd700',
+                        borderWidth: 2,
+                        tension: 0.2,
+                        fill: false
+                    }, {
+                        label: 'Desempenho',
+                        data: desempenhos,
+                        borderColor: '#2c6e49',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: true,
+                        backgroundColor: 'rgba(44, 110, 73, 0.05)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: { 
+                                callback: value => value + '%',
+                                stepSize: 10
+                            }
+                        }
+                    }
+                }
+            }));
+        }
+
+        async function excluirGrupo(departamento, objetivo) {
+            if(!confirm(`Excluir todos os dados de ${departamento} - ${objetivo}?`)) return;
+            
+            try {
+                const { error } = await supabase
+                    .from('metricas')
+                    .delete()
+                    .match({ departamento, objetivo });
+
+                if(error) throw error;
+                
+                await carregarDados();
+                showToast('Dados excluídos com sucesso!');
+            } catch (error) {
+                showToast('Erro ao excluir: ' + error.message, 'error');
+            }
+        }
+
+        async function limparTudo() {
+            if(!confirm('ATENÇÃO! Isso excluirá TODOS os dados permanentemente. Continuar?')) return;
+            
+            try {
+                const { error } = await supabase
+                    .from('metricas')
+                    .delete()
+                    .neq('id', 0);
+
+                if(error) throw error;
+                
+                await carregarDados();
+                showToast('Todos dados foram removidos!');
+            } catch (error) {
+                showToast('Erro ao limpar: ' + error.message, 'error');
+            }
+        }
+
+        // Iniciar
+        carregarDados();
+    </script>
+</body>
+</html>
